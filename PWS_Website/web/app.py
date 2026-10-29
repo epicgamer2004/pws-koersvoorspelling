@@ -301,16 +301,12 @@ def draai_model(ticker: str, maanden: int) -> Dict[str, Any]:
 
         duur = time.monotonic() - begin
         if proces.returncode != 0:
-            if "Geen of te weinig data gevonden" in proces.stderr:
-                log.info("Geen data voor %s (%.1f s)", ticker, duur)
-                raise GebruikersFout(
-                    404, "We vonden geen koersdata voor {}; probeer bijvoorbeeld {}.".format(ticker, VOORBEELDEN)
-                )
-            log.error(
-                "Model stopte met exitcode %s voor %s / %s:\n%s",
-                proces.returncode, ticker, maanden, _schone_stderr(proces.stderr),
+            log.log(
+                logging.INFO if "Geen of te weinig data gevonden" in proces.stderr else logging.ERROR,
+                "Model stopte met exitcode %s voor %s / %s na %.1f s:\n%s",
+                proces.returncode, ticker, maanden, duur, _schone_stderr(proces.stderr),
             )
-            raise GebruikersFout(500, ALGEMENE_FOUT)
+            raise vertaal_modelfout(proces.returncode, proces.stderr, ticker)
 
         csv_paden = glob.glob(os.path.join(werkmap, "voorspelling_*.csv"))
         png_paden = glob.glob(os.path.join(werkmap, "voorspelling_*.png"))
@@ -334,9 +330,44 @@ def draai_model(ticker: str, maanden: int) -> Dict[str, Any]:
         }
     except UitvoerFout as fout:
         log.error("Uitvoer van het model niet zoals verwacht voor %s / %s: %s", ticker, maanden, fout)
-        raise GebruikersFout(500, ALGEMENE_FOUT)
+        raise GebruikersFout(500, ALGEMENE_FOUT + " (technische code: uitvoer)")
     finally:
         shutil.rmtree(werkmap, ignore_errors=True)
+
+
+YAHOO_BLOKKADE = ("YFRateLimitError", "Too Many Requests", "Rate limited")
+
+
+def _foutcode(returncode: int, stderr: str) -> str:
+    """Korte technische code (alleen de naam van de fout, geen traceback of paden)."""
+    if returncode < 0:
+        return "signaal {}".format(-returncode)
+    for regel in reversed(stderr.splitlines()):
+        gevonden = re.match(r"^\s*([A-Za-z_][\w.]*(?:Error|Exception))\b", regel)
+        if gevonden:
+            return gevonden.group(1).split(".")[-1]
+    return "exitcode {}".format(returncode)
+
+
+def vertaal_modelfout(returncode: int, stderr: str, ticker: str) -> GebruikersFout:
+    """Zet een mislukte modelrun om in een vriendelijke melding voor de bezoeker."""
+    if any(teken in stderr for teken in YAHOO_BLOKKADE):
+        return GebruikersFout(
+            503,
+            "Yahoo Finance laat deze server op dit moment geen koersen ophalen (te veel aanvragen). "
+            "Dit ligt niet aan het aandeel. Probeer het over een paar minuten opnieuw.",
+        )
+    if "Geen of te weinig data gevonden" in stderr:
+        return GebruikersFout(
+            404, "We vonden geen koersdata voor {}; probeer bijvoorbeeld {}.".format(ticker, VOORBEELDEN)
+        )
+    if returncode in (-9, 137):
+        return GebruikersFout(
+            503,
+            "De server had niet genoeg geheugen voor deze voorspelling. "
+            "Probeer het opnieuw, eventueel met minder maanden.",
+        )
+    return GebruikersFout(500, ALGEMENE_FOUT + " (technische code: {})".format(_foutcode(returncode, stderr)))
 
 
 def _veilige_bestandsnaam(naam: str) -> str:
