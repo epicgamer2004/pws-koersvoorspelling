@@ -25,6 +25,7 @@ import threading
 import time
 import weakref
 from collections import OrderedDict, deque
+from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
@@ -254,6 +255,13 @@ def parse_uitvoer(stdout: str, csv_tekst: str, maanden: int) -> Dict[str, Any]:
 # BEGIN CLAUDE CODE: koppeling, geen modelcode #
 # Onderdeel: het model draaien als zwarte doos
 _MPL_MAP = tempfile.mkdtemp(prefix="pws_mpl_")
+# De lettertype-cache van matplotlib kan vooraf zijn gebouwd (zie Dockerfile, MPL_CACHE_BRON).
+# Door die te kopiëren hoeft de eerste modelrun na het opstarten hem niet zelf te bouwen.
+_MPL_BRON = os.environ.get("MPL_CACHE_BRON", "")
+if _MPL_BRON and os.path.isdir(_MPL_BRON):
+    for _naam in os.listdir(_MPL_BRON):
+        if os.path.isfile(os.path.join(_MPL_BRON, _naam)):
+            shutil.copy2(os.path.join(_MPL_BRON, _naam), _MPL_MAP)
 _DOOR_TE_GEVEN = (
     "PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "TZ", "SYSTEMROOT",
     "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
@@ -460,6 +468,46 @@ def voorspelling_ophalen(ticker: str, maanden: int) -> Tuple[str, Dict[str, Any]
 
 
 # BEGIN CLAUDE CODE: koppeling, geen modelcode #
+# Onderdeel: voorverwarmen - een paar voorspellingen alvast in de cache zetten
+# VOORVERWARM="ASML:12,HEIA:12" laat de server deze combinaties direct na het opstarten
+# (en daarna elke keer als de cache verloopt) zelf draaien, zodat een bezoeker die
+# ze kiest meteen een antwoord krijgt. Het model wordt gewoon aangeroepen, niet nagebootst.
+VOORVERWARM = os.environ.get("VOORVERWARM", "").strip()
+
+
+def _voorverwarm_lijst() -> List[Tuple[str, int]]:
+    lijst = []  # type: List[Tuple[str, int]]
+    for deel in VOORVERWARM.split(","):
+        if not deel.strip():
+            continue
+        try:
+            lijst.append(valideer_invoer({"ticker": deel.split(":")[0], "maanden": deel.split(":")[-1]}))
+        except GebruikersFout:
+            log.warning("Ongeldige waarde in VOORVERWARM genegeerd: %r", deel)
+    return lijst
+
+
+def _voorverwarm_lus(lijst: List[Tuple[str, int]]) -> None:
+    while True:
+        for ticker, maanden in lijst:
+            try:
+                voorspelling_ophalen(ticker, maanden)
+                log.info("Voorverwarmd: %s / %s maanden", ticker, maanden)
+            except GebruikersFout as fout:
+                log.warning("Voorverwarmen van %s / %s mislukt: %s", ticker, maanden, fout.melding)
+            except Exception:
+                log.exception("Onverwachte fout bij voorverwarmen van %s / %s", ticker, maanden)
+        time.sleep(CACHE_TTL + 5)
+
+
+def start_voorverwarmen() -> None:
+    lijst = _voorverwarm_lijst()
+    if lijst:
+        threading.Thread(target=_voorverwarm_lus, args=(lijst,), name="voorverwarmen", daemon=True).start()
+# EINDE CLAUDE CODE #
+
+
+# BEGIN CLAUDE CODE: koppeling, geen modelcode #
 # Onderdeel: eenvoudige rate limit per IP-adres (schuivend venster)
 _VERZOEKEN = {}  # type: Dict[str, Deque[float]]
 _VERZOEKEN_LOCK = threading.Lock()
@@ -496,7 +544,13 @@ def controleer_rate_limit(ip: str) -> None:
 
 # BEGIN CLAUDE CODE: koppeling, geen modelcode #
 # Onderdeel: FastAPI-app, beveiligingsheaders en endpoints
-app = FastAPI(title="PWS koersvoorspelling", docs_url=None, redoc_url=None, openapi_url=None)
+@asynccontextmanager
+async def levensloop(_app: FastAPI):
+    start_voorverwarmen()
+    yield
+
+
+app = FastAPI(title="PWS koersvoorspelling", docs_url=None, redoc_url=None, openapi_url=None, lifespan=levensloop)
 
 # Welke sites de pagina in een frame mogen tonen. Standaard niemand; bij Hugging Face Spaces
 # toont huggingface.co de site in een frame, daarom kan dit via FRAME_ANCESTORS worden ingesteld.
