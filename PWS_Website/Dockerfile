@@ -10,19 +10,27 @@ FROM python:3.11-slim
 
 # MAX_GELIJKTIJDIG=1: één modelrun gebruikt bij 24 maanden ongeveer 320 MB geheugen;
 # een gratis server heeft 512 MB, dus er past er maar één tegelijk.
+# VOORVERWARM: deze voorspelling draait de server zelf direct na het opstarten (en na elk
+# verlopen van de cache), zodat het voorbeeld "ASML, 12 maanden" meteen klaarstaat.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PORT=10000 \
     VERTROUW_PROXY=1 \
-    MAX_GELIJKTIJDIG=1
+    MAX_GELIJKTIJDIG=1 \
+    MPL_CACHE_BRON=/app/mpl-cache \
+    VOORVERWARM="ASML:12"
 
 WORKDIR /app
 
 # Pakketten van het model (yfinance, pandas, numpy, matplotlib) en van de webserver
 COPY requirements-web.txt .
 RUN pip install -r requirements-web.txt
+
+# Lettertype-cache van matplotlib alvast bouwen, zodat de eerste modelrun na het opstarten
+# (op een trage gratis server) daar geen tijd aan kwijt is
+RUN MPLCONFIGDIR=/app/mpl-cache MPLBACKEND=Agg python -c "import matplotlib.pyplot as plt; plt.plot([0, 1]); plt.savefig('/tmp/test.png')" && rm -f /tmp/test.png
 
 # Het modelbestand wordt ongewijzigd meegekopieerd; de website alleen als koppeling erbij
 COPY model_voorspelling.py .
