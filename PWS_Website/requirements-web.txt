@@ -1,0 +1,19 @@
+# BEGIN CLAUDE CODE: koppeling, geen modelcode #
+# Bestand: requirements-web.txt
+# Pakketten voor de website én voor het model (model_voorspelling.py).
+# De versies werken met Python 3.9 (lokaal op macOS) en Python 3.11 (Docker).
+# Installeren:  .venv/bin/python -m pip install -r requirements-web.txt
+
+# Pakketten die het model gebruikt
+yfinance==1.2.0
+pandas==2.3.3
+numpy==2.0.2
+matplotlib==3.9.4
+curl_cffi==0.13.0
+requests==2.32.5
+
+# Pakketten voor de webserver
+fastapi==0.128.8
+starlette==0.49.3
+uvicorn==0.39.0
+# EINDE CLAUDE CODE #

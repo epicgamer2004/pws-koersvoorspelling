@@ -1,0 +1,509 @@
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Bestand: web/static/index.html
+     De webpagina rond het model model_voorspelling.py (PWS, VWO 6).
+     Alleen opmaak en weergave: alle modelcijfers komen van de server (stdout en CSV van het model). -->
+<!doctype html>
+<html lang="nl" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Koersvoorspelling met Monte Carlo · PWS</title>
+  <meta name="description" content="Voorspel de koers van een aandeel met Geometrische Brownse Beweging en 10.000 Monte Carlo-simulaties. Een profielwerkstuk (VWO 6), geen beleggingsadvies.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0e13" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/thema.js"></script>
+  <script type="module" src="/static/js/app.js"></script>
+</head>
+<body>
+  <a class="skiplink" href="#main">Direct naar de inhoud</a>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: header met navigatie en thema-knop -->
+  <header class="site-header" id="site-header">
+    <div class="container header-inner">
+      <a class="merk" href="#top" aria-label="Naar boven">
+        <svg class="merk-logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <rect x="1" y="1" width="30" height="30" rx="8" class="merk-vlak"/>
+          <path d="M6 22 L11 17 L15 19 L20 11 L26 8" class="merk-lijn"/>
+          <circle cx="26" cy="8" r="2.2" class="merk-stip"/>
+        </svg>
+        <span class="merk-tekst">Koersvoorspelling <span class="merk-sub">PWS</span></span>
+      </a>
+      <nav class="hoofdnav" aria-label="Hoofdmenu">
+        <ul>
+          <li><a href="#resultaat">Voorspelling</a></li>
+          <li><a href="#parameters">Parameters</a></li>
+          <li><a href="#uitleg">Hoe werkt het</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="#over">Over</a></li>
+        </ul>
+      </nav>
+      <button class="thema-knop" id="thema-knop" type="button" aria-label="Donkere weergave aanzetten" title="Licht of donker">
+        <svg class="icoon icoon-zon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+        <svg class="icoon icoon-maan" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 14.6A8 8 0 0 1 9.4 4a8 8 0 1 0 10.6 10.6z"/></svg>
+      </button>
+    </div>
+  </header>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: hero met geanimeerde achtergrond en invoerformulier -->
+  <main id="main">
+    <section class="hero" id="top" aria-labelledby="hero-titel">
+      <canvas class="hero-achtergrond" id="hero-achtergrond" aria-hidden="true"></canvas>
+      <div class="hero-gloed" aria-hidden="true"></div>
+      <div class="container hero-inner">
+        <p class="eyebrow reveal">Profielwerkstuk · VWO 6</p>
+        <h1 id="hero-titel" class="reveal" data-vertraging="1">Aandeelkoersen voorspellen met <span class="accent-tekst">Monte&nbsp;Carlo</span></h1>
+        <p class="lead reveal" data-vertraging="2">Kies een aandeel en een periode. Het model schat uit tien jaar koersdata de groei en de beweeglijkheid van de koers, en simuleert daarna 10.000 mogelijke toekomsten met Geometrische Brownse Beweging.</p>
+
+        <form class="voorspel-form reveal" id="voorspel-form" data-vertraging="3" novalidate>
+          <div class="veld veld-ticker">
+            <label for="ticker">Aandeel</label>
+            <div class="invoer-wrap">
+              <svg class="invoer-icoon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+              <input id="ticker" name="ticker" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="bijv. ASML" required aria-describedby="ticker-hulp">
+            </div>
+            <p id="ticker-hulp" class="hulp">Typ de code zonder “.AS”. Het model probeert eerst de beurs van Amsterdam.</p>
+            <div class="chips" role="group" aria-label="Voorbeelden van aandelen">
+              <button type="button" class="chip" data-ticker="ASML">ASML</button>
+              <button type="button" class="chip" data-ticker="HEIA">HEIA</button>
+              <button type="button" class="chip" data-ticker="AAPL">AAPL</button>
+            </div>
+          </div>
+
+          <div class="veld veld-maanden">
+            <div class="label-rij">
+              <label for="maanden">Aantal maanden vooruit</label>
+              <span class="maanden-badge" aria-hidden="true"><span id="maanden-dagen">252</span> handelsdagen</span>
+            </div>
+            <div class="stepper">
+              <button type="button" class="stepper-knop" data-stap="-1" aria-label="Eén maand minder" aria-controls="maanden">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 12h12"/></svg>
+              </button>
+              <input id="maanden" name="maanden" type="number" min="1" max="24" step="1" value="12" inputmode="numeric" required aria-describedby="maanden-hulp">
+              <button type="button" class="stepper-knop" data-stap="1" aria-label="Eén maand meer" aria-controls="maanden">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 12h12M12 6v12"/></svg>
+              </button>
+            </div>
+            <input id="maanden-slider" class="slider" type="range" min="1" max="24" step="1" value="12" aria-label="Aantal maanden vooruit (schuifregelaar)" aria-controls="maanden">
+            <p id="maanden-hulp" class="hulp">1 tot en met 24 maanden. Het model rekent met 21 handelsdagen per maand.</p>
+          </div>
+
+          <div class="veld veld-knop">
+            <button type="submit" class="knop knop-primair knop-groot" id="voorspel-knop">
+              <span class="knop-tekst">Voorspel</span>
+              <svg class="knop-pijl" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+              <span class="knop-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+
+          <div id="form-fout" class="melding melding-fout" role="alert" hidden></div>
+        </form>
+      </div>
+      <a class="scroll-hint" href="#resultaat" aria-label="Naar de voorspelling">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+      </a>
+    </section>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: resultaat - kop, laadstatus, foutmelding en lege staat -->
+    <section class="sectie" id="resultaat" aria-labelledby="resultaat-titel">
+      <div class="container">
+        <div class="sectie-kop reveal">
+          <p class="eyebrow">Resultaat</p>
+          <h2 id="resultaat-titel">De voorspelling</h2>
+          <p class="sectie-intro" id="resultaat-intro">Vul hierboven een aandeel in en klik op <strong>Voorspel</strong>. De grafiek tekent zich dan hier.</p>
+        </div>
+
+        <p id="status" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+        <div id="resultaat-fout" class="melding melding-fout melding-groot" role="alert" hidden></div>
+
+        <div id="leeg" class="card leeg reveal">
+          <svg class="leeg-illustratie" viewBox="0 0 320 120" aria-hidden="true" focusable="false">
+            <path class="leeg-raster" d="M10 20H310M10 60H310M10 100H310"/>
+            <path class="leeg-sim" d="M10 70 C60 66 90 52 130 58 S210 30 250 40 310 26 310 26"/>
+            <path class="leeg-sim" d="M10 70 C60 74 100 84 140 76 S220 90 260 80 310 84 310 84"/>
+            <path class="leeg-sim" d="M10 70 C70 70 110 62 150 66 S230 56 270 58 310 54 310 54"/>
+            <path class="leeg-lijn" d="M10 70 C80 68 140 64 200 60 S280 54 310 52"/>
+            <circle class="leeg-stip" cx="10" cy="70" r="4"/>
+          </svg>
+          <p class="leeg-tekst">Nog geen voorspelling. Probeer bijvoorbeeld <button type="button" class="link-knop" data-ticker="ASML">ASML</button> voor 12 maanden.</p>
+        </div>
+
+        <div id="laden" class="card laden" hidden>
+          <svg class="laden-svg" viewBox="0 0 320 120" aria-hidden="true" focusable="false">
+            <path class="laden-raster" d="M10 30H310M10 60H310M10 90H310"/>
+            <path class="laden-sim s1" d="M20 64 L60 58 L100 66 L140 48 L180 54 L220 36 L260 42 L300 24"/>
+            <path class="laden-sim s2" d="M20 64 L60 70 L100 62 L140 74 L180 68 L220 82 L260 76 L300 92"/>
+            <path class="laden-sim s3" d="M20 64 L60 62 L100 54 L140 60 L180 46 L220 52 L260 58 L300 50"/>
+            <path class="laden-sim s4" d="M20 64 L60 68 L100 74 L140 66 L180 72 L220 64 L260 70 L300 66"/>
+            <path class="laden-lijn" d="M20 64 L60 63 L100 62 L140 60 L180 58 L220 57 L260 55 L300 53"/>
+          </svg>
+          <p class="laden-titel">Het model draait: koersen ophalen en 10.000 simulaties uitvoeren</p>
+          <p class="laden-sub">Dit kan even duren. Bezig sinds <span id="laden-seconden">0</span>&nbsp;s.</p>
+        </div>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: resultaat a - geanimeerde grafiek -->
+        <div id="uitkomst" class="uitkomst" hidden>
+          <div class="uitkomst-kop">
+            <div>
+              <h3 class="uitkomst-titel" id="uitkomst-titel" tabindex="-1">—</h3>
+              <p class="uitkomst-meta" id="uitkomst-meta"></p>
+            </div>
+            <div class="uitkomst-badges" id="uitkomst-badges"></div>
+          </div>
+
+          <div class="card grafiek-card">
+            <div class="grafiek-balk">
+              <ul class="legenda" aria-label="Legenda">
+                <li><span class="sw sw-mc" aria-hidden="true"></span>Monte Carlo-mediaan <span class="legenda-bron">(CSV van het model)</span></li>
+                <li class="legenda-formule"><span class="sw sw-formule" aria-hidden="true"></span>Formule <span class="legenda-bron">(CSV van het model)</span></li>
+                <li><span class="sw sw-sim" aria-hidden="true"></span>Illustratieve simulaties <span class="legenda-bron">(1.000 van de 10.000)</span></li>
+                <li class="legenda-band"><span class="sw sw-band" aria-hidden="true"></span>90%-bereik <span class="legenda-bron">(berekend uit de formule)</span></li>
+              </ul>
+              <div class="grafiek-bediening">
+                <label class="schakelaar">
+                  <input type="checkbox" id="toon-band">
+                  <span class="schakel" aria-hidden="true"></span>
+                  <span>90%-bereik</span>
+                </label>
+                <label class="schakelaar">
+                  <input type="checkbox" id="toon-formule" checked>
+                  <span class="schakel" aria-hidden="true"></span>
+                  <span>Formulelijn</span>
+                </label>
+                <button type="button" class="knop knop-zacht knop-klein" id="opnieuw-knop">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></svg>
+                  Opnieuw afspelen
+                </button>
+              </div>
+            </div>
+
+            <div class="grafiek-wrap" id="grafiek-wrap">
+              <canvas id="grafiek" tabindex="0" role="img" aria-label="Grafiek van de voorspelling" aria-describedby="grafiek-samenvatting grafiek-toetsen"></canvas>
+              <div class="tooltip" id="tooltip" role="presentation" hidden></div>
+            </div>
+            <p id="grafiek-live" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+
+            <div class="grafiek-noten">
+              <p><strong>Grijze lijnen:</strong> illustratieve simulaties (1.000 van de 10.000). Je browser maakt ze zelf met dezelfde nu en sigma als het model en een vaste seed; het zijn dus niet de simulaties van het model zelf. <strong>Zwarte lijn</strong> (wit in de donkere weergave): de Monte Carlo-mediaan uit de CSV van het model. <strong>Gestippelde lijn:</strong> de formulevoorspelling uit de CSV. <strong>90%-bereik:</strong> berekend uit de formule S0·exp(nu·t ± 1,645·sigma·√t), met t = dag/252.</p>
+              <p id="grafiek-toetsen" class="grafiek-tip">Tip: beweeg over de grafiek, of klik erop en gebruik de pijltjestoetsen (Shift + pijl = een maand).</p>
+              <p id="grafiek-samenvatting" class="grafiek-samenvatting"></p>
+            </div>
+          </div>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: resultaat b - begin- en eindwaarden -->
+          <section class="waarden" aria-labelledby="waarden-titel">
+            <h3 id="waarden-titel" class="blok-titel">Begin- en eindwaarden</h3>
+            <div class="kaarten-raster">
+              <article class="card kaart waarde-kaart">
+                <p class="kaart-label">Beginwaarde S0</p>
+                <p class="kaart-getal"><span id="w-s0">—</span></p>
+                <p class="kaart-sub">Laatste koers, op <span id="w-s0-datum">—</span></p>
+              </article>
+              <article class="card kaart waarde-kaart kaart-formule">
+                <p class="kaart-label"><span class="sw sw-formule" aria-hidden="true"></span>Eindwaarde formule</p>
+                <p class="kaart-getal"><span id="w-eind-formule">—</span></p>
+                <p class="kaart-sub">na <span class="js-dagen">—</span> handelsdagen (± <span class="js-maanden">—</span> maanden)</p>
+                <p class="kaart-verschil" id="w-verschil-formule-rij"><span class="pijl" aria-hidden="true"></span><span id="w-verschil-formule">—</span> <span class="verschil-pct">(<span id="w-pct-formule">—</span>)</span></p>
+              </article>
+              <article class="card kaart waarde-kaart kaart-mc">
+                <p class="kaart-label"><span class="sw sw-mc" aria-hidden="true"></span>Eindwaarde Monte Carlo-mediaan</p>
+                <p class="kaart-getal"><span id="w-eind-mc">—</span></p>
+                <p class="kaart-sub">na <span class="js-dagen">—</span> handelsdagen (± <span class="js-maanden">—</span> maanden)</p>
+                <p class="kaart-verschil" id="w-verschil-mc-rij"><span class="pijl" aria-hidden="true"></span><span id="w-verschil-mc">—</span> <span class="verschil-pct">(<span id="w-pct-mc">—</span>)</span></p>
+              </article>
+              <article class="card kaart waarde-kaart">
+                <p class="kaart-label">Horizon</p>
+                <p class="kaart-getal"><span id="w-dagen">—</span> <span class="kaart-eenheid">dagen</span></p>
+                <p class="kaart-sub">handelsdagen in de CSV van het model, ± <span class="js-maanden">—</span> maanden</p>
+              </article>
+            </div>
+
+            <div class="card compact-wrap">
+              <table class="compact-tabel">
+                <caption>Begin- en eindwaarden als tabel</caption>
+                <thead>
+                  <tr><th scope="col">Lijn</th><th scope="col">Start (S0)</th><th scope="col">Eind</th><th scope="col">Verschil</th><th scope="col">Verschil %</th></tr>
+                </thead>
+                <tbody>
+                  <tr><th scope="row">Formule</th><td id="t-start-formule">—</td><td id="t-eind-formule">—</td><td id="t-verschil-formule">—</td><td id="t-pct-formule">—</td></tr>
+                  <tr><th scope="row">Monte Carlo-mediaan</th><td id="t-start-mc">—</td><td id="t-eind-mc">—</td><td id="t-verschil-mc">—</td><td id="t-pct-mc">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="noot">S0 en de eindwaarden komen uit de uitvoer van het model. Het verschil (absoluut en in procenten ten opzichte van S0) is in je browser berekend uit die getoonde waarden. Koersen staan in de valuta van de beurs; het model print geen valuta.</p>
+          </section>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: resultaat c - dagtabel met zoeken en CSV-download -->
+          <section class="card dagtabel-card" aria-labelledby="dagtabel-titel">
+            <div class="dagtabel-kop">
+              <div>
+                <h3 id="dagtabel-titel" class="blok-titel">Alle dagen uit het model</h3>
+                <p class="blok-sub">Precies de tabel die het model in de CSV schrijft, één rij per handelsdag.</p>
+              </div>
+              <div class="dagtabel-bediening">
+                <label class="zoek-veld" for="dag-zoek">
+                  <span class="sr-only">Zoek op dagnummer</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+                  <input id="dag-zoek" type="search" inputmode="numeric" placeholder="Zoek dag…" autocomplete="off" aria-describedby="dag-telling">
+                </label>
+                <button type="button" class="knop knop-primair knop-klein" id="download-csv">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+                  Download CSV
+                </button>
+              </div>
+            </div>
+            <p id="dag-telling" class="dag-telling" aria-live="polite"></p>
+            <div class="dagtabel-scroll" id="dagtabel-scroll" tabindex="0" role="region" aria-labelledby="dagtabel-titel">
+              <table class="dagtabel">
+                <thead>
+                  <tr><th scope="col">Dag</th><th scope="col">Voorspelling formule</th><th scope="col">Voorspelling Monte Carlo</th></tr>
+                </thead>
+                <tbody id="dagtabel-body"></tbody>
+              </table>
+            </div>
+            <p id="download-fout" class="melding melding-fout" role="alert" hidden></p>
+          </section>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: resultaat d - originele grafiek (PNG) van het model -->
+          <figure class="card png-figuur">
+            <div class="png-wrap">
+              <img id="model-png" alt="" width="1500" height="900" decoding="async">
+            </div>
+            <figcaption>
+              <h3 class="blok-titel">Originele grafiek van het model</h3>
+              <p id="png-bijschrift"></p>
+              <p><a id="png-link" href="#" target="_blank" rel="noopener">Open de afbeelding op ware grootte</a></p>
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: parameters in gewone taal -->
+    <section class="sectie sectie-zacht" id="parameters" aria-labelledby="parameters-titel">
+      <div class="container">
+        <div class="sectie-kop reveal">
+          <p class="eyebrow">Parameters</p>
+          <h2 id="parameters-titel">Wat het model uit de koersdata haalt</h2>
+          <p class="sectie-intro" id="parameters-intro">Na een voorspelling zie je hier de waarden die het model heeft geprint, met uitleg in gewone taal.</p>
+        </div>
+
+        <div class="kaarten-raster kaarten-3">
+          <article class="card kaart param-kaart reveal">
+            <p class="param-symbool" aria-hidden="true">ν</p>
+            <h3 class="kaart-titel">nu <span class="param-alias">(groei van de mediaan)</span></h3>
+            <p class="param-waarde"><span id="p-nu">—</span></p>
+            <p class="param-pct"><span id="p-nu-pct">—</span> per jaar</p>
+            <p class="param-uitleg">De gemiddelde jaarlijkse groei van de logkoers: met dit tempo groeit de middelste (mediaan) uitkomst.</p>
+          </article>
+          <article class="card kaart param-kaart reveal" data-vertraging="1">
+            <p class="param-symbool" aria-hidden="true">σ</p>
+            <h3 class="kaart-titel">sigma <span class="param-alias">(beweeglijkheid)</span></h3>
+            <p class="param-waarde"><span id="p-sigma">—</span></p>
+            <p class="param-pct"><span id="p-sigma-pct">—</span> per jaar</p>
+            <p class="param-uitleg">De volatiliteit: hoe sterk de koers per jaar rond de trend schommelt. Hoe groter sigma, hoe breder de waaier van simulaties.</p>
+          </article>
+          <article class="card kaart param-kaart reveal" data-vertraging="2">
+            <p class="param-symbool" aria-hidden="true">μ</p>
+            <h3 class="kaart-titel">mu <span class="param-alias">(verwachte groei)</span></h3>
+            <p class="param-waarde"><span id="p-mu">—</span></p>
+            <p class="param-pct"><span id="p-mu-pct">—</span> per jaar</p>
+            <p class="param-uitleg">De verwachte groei van de koers zelf (μ = ν + ½σ²). Die ligt hoger dan nu, omdat uitschieters naar boven het gemiddelde optrekken.</p>
+          </article>
+        </div>
+
+        <div class="card dataset reveal">
+          <h3 class="blok-titel">Gebruikte data</h3>
+          <dl class="dataset-lijst">
+            <div><dt>Gebruikte ticker</dt><dd id="d-ticker">—</dd></div>
+            <div><dt>Dataperiode</dt><dd id="d-periode">—</dd></div>
+            <div><dt>Aantal dagen data</dt><dd id="d-dagen">—</dd></div>
+            <div><dt>Aantal logrendementen</dt><dd id="d-logrendementen">—</dd></div>
+            <div><dt>Lege waarden</dt><dd id="d-leeg">—</dd></div>
+          </dl>
+          <p class="noot">Percentages per jaar zijn de geprinte waarden maal 100. Bron van de koersen: Yahoo Finance, via het Python-pakket yfinance.</p>
+        </div>
+      </div>
+    </section>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: hoe werkt het - vijf stappen, formule en seed -->
+    <section class="sectie" id="uitleg" aria-labelledby="uitleg-titel">
+      <div class="container">
+        <div class="sectie-kop reveal">
+          <p class="eyebrow">Hoe werkt het</p>
+          <h2 id="uitleg-titel">Van koersdata naar voorspellijn in vijf stappen</h2>
+        </div>
+
+        <div class="uitleg-raster">
+          <ol class="stappen" id="stappen">
+            <li class="stap reveal">
+              <span class="stap-nummer" aria-hidden="true">1</span>
+              <div class="stap-inhoud">
+                <svg class="stap-icoon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>
+                <h3>Koersen ophalen</h3>
+                <p>Het model haalt via yfinance tien jaar slotkoersen op. Het probeert eerst <code>NAAM.AS</code> (Euronext Amsterdam) en daarna <code>NAAM</code>. Er zijn minstens 500 handelsdagen nodig.</p>
+              </div>
+            </li>
+            <li class="stap reveal">
+              <span class="stap-nummer" aria-hidden="true">2</span>
+              <div class="stap-inhoud">
+                <svg class="stap-icoon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 17l5-6 4 3 6-8 3 2"/></svg>
+                <h3>Logrendementen berekenen</h3>
+                <p>Voor elke dag rekent het model ln(S<sub>vandaag</sub> / S<sub>gisteren</sub>) uit: de groeistap van die dag. Tien jaar data geeft zo ruim 2.500 stappen.</p>
+              </div>
+            </li>
+            <li class="stap reveal">
+              <span class="stap-nummer" aria-hidden="true">3</span>
+              <div class="stap-inhoud">
+                <svg class="stap-icoon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20V4M4 20h16M8 16v-3M12 16V8M16 16v-6"/></svg>
+                <h3>nu, sigma en mu schatten</h3>
+                <p>Het gemiddelde van de stappen maal 252 is <em>nu</em>; de standaardafwijking maal √252 is <em>sigma</em>; <em>mu</em> = nu + ½·sigma². S0 is de laatste slotkoers.</p>
+              </div>
+            </li>
+            <li class="stap reveal">
+              <span class="stap-nummer" aria-hidden="true">4</span>
+              <div class="stap-inhoud">
+                <svg class="stap-icoon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12c3-1 4-5 7-5s3 6 6 6 3-4 5-4M3 12c3 1 4 4 7 4s4-2 6-2 3 2 5 3"/></svg>
+                <h3>10.000 simulaties</h3>
+                <p>Voor elke handelsdag (maanden × 21) trekt het model een toevallig getal Z en zet een stap met de GBM-formule uit het formuleblok. Dat gebeurt voor 10.000 paden tegelijk.</p>
+              </div>
+            </li>
+            <li class="stap reveal">
+              <span class="stap-nummer" aria-hidden="true">5</span>
+              <div class="stap-inhoud">
+                <svg class="stap-icoon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 18c5-1 9-5 16-10"/><circle cx="20" cy="8" r="1.8"/><path d="M4 6h5M4 10h3"/></svg>
+                <h3>Mediaan als voorspellijn</h3>
+                <p>Per dag neemt het model de middelste waarde van de 10.000 paden: de Monte Carlo-mediaan. Daarnaast rekent het de formulelijn S0·e<sup>nu·t</sup> uit, met t = dag/252.</p>
+              </div>
+            </li>
+          </ol>
+
+          <div class="uitleg-zij">
+            <div class="card formule-kaart reveal">
+              <p class="kaart-label">Geometrische Brownse Beweging, één stap</p>
+              <div class="formule" role="math" aria-label="S van t plus delta t is gelijk aan S van t maal exp van: open haakje mu min een half sigma kwadraat sluit haakje maal delta t, plus sigma maal wortel delta t maal Z">
+                <span class="f-v">S</span>(<span class="f-v">t</span> + Δ<span class="f-v">t</span>) = <span class="f-v">S</span>(<span class="f-v">t</span>)&#8202;·&#8202;exp<span class="f-haak">[</span>(μ − <span class="f-breuk"><span>1</span><span>2</span></span>σ<sup>2</sup>)&#8202;·&#8202;Δ<span class="f-v">t</span> + σ&#8202;·&#8202;<span class="f-wortel"><span class="f-wortel-teken">√</span><span class="f-wortel-onder">Δ<span class="f-v">t</span></span></span>&#8202;·&#8202;<span class="f-v">Z</span><span class="f-haak">]</span>
+              </div>
+              <dl class="symbolen">
+                <div><dt><span class="f-v">S</span>(<span class="f-v">t</span>)</dt><dd>de koers op tijdstip <span class="f-v">t</span>; de start is S0, de laatste koers</dd></div>
+                <div><dt>Δ<span class="f-v">t</span></dt><dd>één handelsdag in jaren: 1/252</dd></div>
+                <div><dt>μ</dt><dd>mu, de verwachte groei per jaar</dd></div>
+                <div><dt>σ</dt><dd>sigma, de beweeglijkheid per jaar</dd></div>
+                <div><dt>μ − ½σ²</dt><dd>is precies nu: de groei van de mediaan</dd></div>
+                <div><dt><span class="f-v">Z</span></dt><dd>een toevallig getal uit de standaardnormale verdeling (gemiddelde 0, standaardafwijking 1)</dd></div>
+                <div><dt>exp</dt><dd>de e-macht; zo blijft de koers altijd positief</dd></div>
+              </dl>
+            </div>
+
+            <div class="card seed-kaart reveal">
+              <div class="seed-kop">
+                <code class="seed-code">np.random.seed(42)</code>
+              </div>
+              <h3 class="kaart-titel">Vaste seed: reproduceerbaar</h3>
+              <p>Een computer maakt “toeval” met een rekenregel die bij een startgetal begint: de seed. Het model zet die altijd op 42. Dezelfde invoer met dezelfde koersdata geeft daarom precies dezelfde 10.000 simulaties en dezelfde voorspelling. Komt er een nieuwe slotkoers bij, dan verandert de uitkomst wel.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: veelgestelde vragen -->
+    <section class="sectie sectie-zacht" id="faq" aria-labelledby="faq-titel">
+      <div class="container container-smal">
+        <div class="sectie-kop reveal">
+          <p class="eyebrow">FAQ</p>
+          <h2 id="faq-titel">Veelgestelde vragen</h2>
+        </div>
+        <div class="faq-lijst">
+          <details class="faq reveal">
+            <summary>Welke aandelen werken?<span class="faq-icoon" aria-hidden="true"></span></summary>
+            <div class="faq-antwoord"><p>Elk aandeel dat Yahoo Finance kent en waarvan minstens 500 handelsdagen aan koersen beschikbaar zijn. Gebruik de beurscode (de ticker), niet de bedrijfsnaam: <code>HEIA</code> werkt, “Heineken” meestal niet. Voorbeelden: ASML, HEIA, AAPL.</p></div>
+          </details>
+          <details class="faq reveal">
+            <summary>Waarom typ ik ASML en niet ASML.AS?<span class="faq-icoon" aria-hidden="true"></span></summary>
+            <div class="faq-antwoord"><p>Het model plakt zelf “.AS” achter de naam en probeert eerst de beurs van Amsterdam. Lukt dat niet, dan probeert het de naam zonder toevoeging, bijvoorbeeld AAPL in de Verenigde Staten. Typ je toch ASML.AS, dan werkt dat ook: de tweede poging is dan precies ASML.AS.</p></div>
+          </details>
+          <details class="faq reveal">
+            <summary>Wat betekent de zwarte lijn?<span class="faq-icoon" aria-hidden="true"></span></summary>
+            <div class="faq-antwoord"><p>Op elke dag zet het model de 10.000 gesimuleerde koersen op volgorde en neemt de middelste: de mediaan. De zwarte lijn (in de donkere weergave wit) verbindt die middelste waarden. Het is dus geen voorspelling van één precieze koers, maar het midden van alle mogelijke uitkomsten in het model.</p></div>
+          </details>
+          <details class="faq reveal">
+            <summary>Waarom lijkt de lijn bijna recht?<span class="faq-icoon" aria-hidden="true"></span></summary>
+            <div class="faq-antwoord"><p>Het toeval van de 10.000 paden middelt in de mediaan bijna helemaal weg. Wat overblijft is de vaste groei S0·e<sup>nu·t</sup>. Dat is een exponentiële kromme, maar over een paar maanden tot twee jaar en bij een gewone groei ziet die er bijna uit als een rechte lijn.</p></div>
+          </details>
+          <details class="faq reveal">
+            <summary>Waarom 10.000 simulaties?<span class="faq-icoon" aria-hidden="true"></span></summary>
+            <div class="faq-antwoord"><p>Met weinig simulaties hangt de mediaan sterk af van toeval. Met meer simulaties wordt hij stabieler: de onnauwkeurigheid neemt af met ongeveer de wortel van het aantal. 10.000 is een goede balans tussen nauwkeurigheid en rekentijd. Daarom liggen de Monte Carlo-lijn en de formulelijn ook zo dicht bij elkaar.</p></div>
+          </details>
+          <details class="faq reveal">
+            <summary>Wat is een seed?<span class="faq-icoon" aria-hidden="true"></span></summary>
+            <div class="faq-antwoord"><p>Het startgetal van de toevalsgenerator. Het model gebruikt altijd seed 42, zodat dezelfde invoer met dezelfde koersdata precies hetzelfde resultaat geeft. Zo kan iedereen de uitkomst controleren.</p></div>
+          </details>
+          <details class="faq reveal">
+            <summary>Waarom zijn de grijze lijnen hier anders dan in de PNG?<span class="faq-icoon" aria-hidden="true"></span></summary>
+            <div class="faq-antwoord"><p>De grijze lijnen in de animatie maakt je browser zelf, met dezelfde nu en sigma maar een eigen toevalsgenerator. Ze zijn bedoeld als illustratie. De PNG daaronder is de echte grafiek van het model, met de echte simulaties.</p></div>
+          </details>
+          <details class="faq reveal">
+            <summary>Waarom staat er geen euroteken bij de koers?<span class="faq-icoon" aria-hidden="true"></span></summary>
+            <div class="faq-antwoord"><p>Het model print geen valuta. De koers staat in de valuta van de beurs waar het aandeel wordt verhandeld. Daarom schrijven we alleen “koers”.</p></div>
+          </details>
+        </div>
+      </div>
+    </section>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: over dit PWS -->
+    <section class="sectie" id="over" aria-labelledby="over-titel">
+      <div class="container">
+        <div class="sectie-kop reveal">
+          <p class="eyebrow">Over</p>
+          <h2 id="over-titel">Over dit profielwerkstuk</h2>
+        </div>
+        <div class="card over-kaart reveal">
+          <dl class="over-lijst">
+            <div><dt>Makers</dt><dd>Hugo Boelens<br>Lucas Oonk</dd></div>
+            <div><dt>School</dt><dd>Hageveld</dd></div>
+            <div><dt>Begeleider</dt><dd>[BEGELEIDER]</dd></div>
+            <div><dt>Datum</dt><dd><time datetime="2026-10-29">29 oktober 2026</time></dd></div>
+          </dl>
+          <p class="noot">Het rekenmodel (<code>model_voorspelling.py</code>) hoort bij dit profielwerkstuk. Deze website roept dat model ongewijzigd aan en laat de uitkomst zien.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+<!-- # EINDE CLAUDE CODE # -->
+
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Onderdeel: footer -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-disclaimer"><strong>Disclaimer:</strong> deze website is onderdeel van een profielwerkstuk (VWO 6) en geeft geen beleggingsadvies. Voorspellingen komen uit een vereenvoudigd wiskundig model en zijn geen garantie voor de toekomst. Koersdata via Yahoo Finance (yfinance).</p>
+      <p class="footer-klein"><a href="#top">Terug naar boven</a></p>
+    </div>
+  </footer>
+</body>
+</html>
+<!-- # EINDE CLAUDE CODE # -->

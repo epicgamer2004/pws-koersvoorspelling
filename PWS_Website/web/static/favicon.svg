@@ -1,0 +1,8 @@
+<!-- # BEGIN CLAUDE CODE: opmaak, geen modelcode # -->
+<!-- Bestand: web/static/favicon.svg - pictogram van de website (een stijgende koerslijn). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect x="1" y="1" width="30" height="30" rx="8" fill="#2753d8"/>
+  <path d="M6 22 L11 17 L15 19 L20 11 L26 8" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="26" cy="8" r="2.2" fill="#ffffff"/>
+</svg>
+<!-- # EINDE CLAUDE CODE # -->
